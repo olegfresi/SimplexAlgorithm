@@ -1,5 +1,7 @@
 package Model;
 
+import org.apache.commons.numbers.fraction.BigFraction;
+
 import java.util.*;
 
 public class TableauBuilder {
@@ -8,7 +10,7 @@ public class TableauBuilder {
         int numRows = constraints.size();
         int numCols = chosenVariableOrder.size() + 1; // +1 for the RHS column (constant terms)
 
-        double[] matrix = new double[numRows * numCols];
+        BigFraction[] matrix = new BigFraction[numRows * numCols];
 
         String[] basicVars = new String[numRows];
         String[] nonBasicVars = new String[numCols - 1];
@@ -27,7 +29,7 @@ public class TableauBuilder {
             for (int j = 0; j < chosenVariableOrder.size(); j++) {
                 String varName = chosenVariableOrder.get(j);
                 // Safely inject 0.0 if the specific variable is absent in this constraint
-                double coefficient = constraint.getVars().getOrDefault(varName, 0.0);
+                BigFraction coefficient = constraint.getVars().getOrDefault(varName, BigFraction.ZERO);
 
                 matrix[i * numCols + j] = coefficient;
             }

@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.*;
+import org.apache.commons.numbers.fraction.BigFraction;
 
 public class SimplexSolver {
     private final List<LinearConstraint> originalConstraints = new ArrayList<>();
@@ -21,8 +22,9 @@ public class SimplexSolver {
         List<StandardizedConstraint> standardizedConstraints = standardizer.standardize(originalConstraints);
 
         List<StandardizedConstraint> equationsOnly = new ArrayList<>();
-        Map<String, Double> lowerBounds = new HashMap<>();
-        Map<String, Double> upperBounds = new HashMap<>();
+
+        Map<String, BigFraction> lowerBounds = new HashMap<>();
+        Map<String, BigFraction> upperBounds = new HashMap<>();
         Set<String> uniqueVars = new HashSet<>();
 
         for (StandardizedConstraint sc : standardizedConstraints) {
@@ -39,10 +41,12 @@ public class SimplexSolver {
             }
         }
 
-        // Ensure standard decision variables (like x, y) default to a lower bound of 0.0 if not explicit
-        for (String variable : uniqueVars)
-            if (!variable.startsWith("_scv") && !lowerBounds.containsKey(variable))
-                lowerBounds.put(variable, 0.0);
+        // Ensure standard decision variables default to exactly BigFraction.ZERO if not explicit
+        for (String variable : uniqueVars) {
+            if (!variable.startsWith("_scv") && !lowerBounds.containsKey(variable)) {
+                lowerBounds.put(variable, BigFraction.ZERO);
+            }
+        }
 
         List<String> chosenOrder = switch (this.strategy) {
             case REVERSE -> VariableOrderer.getReverseOrder(uniqueVars);
@@ -50,6 +54,7 @@ public class SimplexSolver {
             default -> VariableOrderer.getStandardOrder(uniqueVars);
         };
 
+        // Tableau instantiation now allocates and receives exact fractional structures
         Tableau tableau = TableauBuilder.buildTableau(equationsOnly, chosenOrder);
 
         int pivotCount = 0;
@@ -62,17 +67,19 @@ public class SimplexSolver {
             int leavingRow = -1;
             int enteringCol = -1;
 
-            // Look for bound violations using the updated headers mapping
+            // Look for bound violations by extracting double values strictly inside the conditional check
             for (int i = 0; i < tableau.getNumRows(); i++) {
                 String basicVarName = tableau.getBasicVars()[i];
-                double currentVal = tableau.getValue(i, tableau.getNumCols() - 1);
+                BigFraction currentVal = tableau.getValue(i, tableau.getNumCols() - 1);
 
-                if (lowerBounds.containsKey(basicVarName) && currentVal < lowerBounds.get(basicVarName) - 1e-9) {
+                if (lowerBounds.containsKey(basicVarName) &&
+                        currentVal.doubleValue() < lowerBounds.get(basicVarName).doubleValue()) {
                     leavingRow = i;
                     break;
                 }
 
-                if (upperBounds.containsKey(basicVarName) && currentVal > upperBounds.get(basicVarName) + 1e-9) {
+                if (upperBounds.containsKey(basicVarName) &&
+                        currentVal.doubleValue() > upperBounds.get(basicVarName).doubleValue()) {
                     leavingRow = i;
                     break;
                 }
@@ -80,14 +87,18 @@ public class SimplexSolver {
 
             if (leavingRow != -1) {
                 String basicVarName = tableau.getBasicVars()[leavingRow];
-                double currentVal = tableau.getValue(leavingRow, tableau.getNumCols() - 1);
+                BigFraction currentVal = tableau.getValue(leavingRow, tableau.getNumCols() - 1);
 
-                boolean mustIncrease = lowerBounds.containsKey(basicVarName) && currentVal < lowerBounds.get(basicVarName);
+                // Evaluate the required direction using double comparison
+                boolean mustIncrease = lowerBounds.containsKey(basicVarName) &&
+                        currentVal.doubleValue() < lowerBounds.get(basicVarName).doubleValue();
 
                 for (int j = 0; j < tableau.getNumCols() - 1; j++) {
-                    double a_ir = tableau.getValue(leavingRow, j);
+                    BigFraction a_ir = tableau.getValue(leavingRow, j);
+                    double a_irDouble = a_ir.doubleValue();
 
-                    if ((mustIncrease && a_ir > 0.0) || (!mustIncrease && a_ir < 0.0)) {
+                    // Direction check performed over double values where inequality is mandatory
+                    if ((mustIncrease && a_irDouble > 0.0) || (!mustIncrease && a_irDouble < 0.0)) {
                         enteringCol = j;
                         pivoting = true;
                         break;
@@ -121,21 +132,26 @@ public class SimplexSolver {
 
     private void gaussianElimination(Tableau tab, int pivotRow, int pivotCol) {
         int numCols = tab.getNumCols();
-        double pivotValue = tab.getValue(pivotRow, pivotCol);
+        BigFraction pivotValue = tab.getValue(pivotRow, pivotCol);
 
+        // Row normalization using exact fraction division
         for (int j = 0; j < numCols; j++) {
-            double currentVal = tab.getValue(pivotRow, j);
-            tab.setValue(pivotRow, j, currentVal / pivotValue);
+            BigFraction currentVal = tab.getValue(pivotRow, j);
+            tab.setValue(pivotRow, j, currentVal.divide(pivotValue));
         }
 
+        // Eliminate entries from adjacent rows using precise fractional subtraction and multiplication
         for (int i = 0; i < tab.getNumRows(); i++)
             if (i != pivotRow) {
-                double factor = tab.getValue(i, pivotCol);
+                BigFraction factor = tab.getValue(i, pivotCol);
                 for (int j = 0; j < numCols; j++) {
-                    double targetRowValue = tab.getValue(i, j);
-                    double pivotRowValue = tab.getValue(pivotRow, j);
-                    tab.setValue(i, j, targetRowValue - (factor * pivotRowValue));
+                    BigFraction targetRowValue = tab.getValue(i, j);
+                    BigFraction pivotRowValue = tab.getValue(pivotRow, j);
+
+                    // Formula: R_i = R_i - (factor * R_pivot)
+                    BigFraction updatedValue = targetRowValue.subtract(factor.multiply(pivotRowValue));
+                    tab.setValue(i, j, updatedValue);
                 }
             }
-    }
+        }
 }

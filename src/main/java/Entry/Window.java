@@ -13,12 +13,12 @@ import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 import java.io.IOException;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 public class Window extends javax.swing.JFrame {
 
-    private JButton loadButton;
-    private JButton solveButton;
     private JLabel fileLabel;
     private File selectedFile;
 
@@ -28,9 +28,11 @@ public class Window extends javax.swing.JFrame {
 
     private void initComponents() {
 
-        loadButton = new JButton("Load File");
-        solveButton = new JButton("Solve");
+        JButton loadButton = new JButton("Load File");
+        JButton solveButton = new JButton("Solve");
         fileLabel = new JLabel("No file selected");
+
+        Logger logger = Logger.getLogger(Window.class.getName());
 
         Dimension buttonSize = new Dimension(200, 45);
 
@@ -42,9 +44,9 @@ public class Window extends javax.swing.JFrame {
         setSize(800, 600);
         setLocationRelativeTo(null);
 
-        loadButton.addActionListener(e -> openFileDialog());
+        loadButton.addActionListener(_ -> openFileDialog());
 
-        solveButton.addActionListener(e -> {
+        solveButton.addActionListener(_ -> {
 
             if (selectedFile == null) {
 
@@ -86,15 +88,14 @@ public class Window extends javax.swing.JFrame {
                 );
             }
             catch (RuntimeException ex) {
-                if (ex.getCause() instanceof ParseException) {
-                    ParseException parseException = (ParseException) ex.getCause();
-                    System.err.println("CRITICAL PARSING FAILURE -> " + parseException.getMessage());
-                    System.err.println("Problem identified on file row index: " + parseException.getLine());
+                if (ex.getCause() instanceof ParseException parseException) {
+                    logger.severe("CRITICAL PARSING FAILURE -> " + parseException.getMessage());
+                    logger.severe("Problem identified on file row index:: " + parseException.getLine());
                 } else
-                    ex.printStackTrace();
+                    logger.log(Level.SEVERE, "Error during execution", ex);
             }catch (IOException ex) {
                 JOptionPane.showMessageDialog(this, ex.getMessage(), "IO Error", JOptionPane.ERROR_MESSAGE);
-                ex.printStackTrace();
+                logger.log(Level.SEVERE, "Error during execution", ex);
             }
         });
 

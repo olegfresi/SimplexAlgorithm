@@ -2,6 +2,8 @@ package Parser.Visitor;
 
 import Model.LinearConstraint;
 import Parser.Generated.*;
+import org.apache.commons.numbers.fraction.BigFraction;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,18 +28,18 @@ public class ConstraintLoaderVisitor extends ConstraintsGrammarBaseVisitor<Void>
         constraint.setRelOp(ctx.relop().getText());
 
         // Process lhs without changing signs
-        ExpressionProcessor leftProcessor = new ExpressionProcessor(1.0);
+        ExpressionProcessor leftProcessor = new ExpressionProcessor(BigFraction.of(1));
         leftProcessor.process(ctx.expr(0));
 
         // Process rhs with a negative multiplier to move all terms to the left-hand side
-        ExpressionProcessor rightProcessor = new ExpressionProcessor(-1.0);
+        ExpressionProcessor rightProcessor = new ExpressionProcessor(BigFraction.of(-1));
         rightProcessor.process(ctx.expr(1));
 
         leftProcessor.getVariables().forEach(constraint::addVariable);
         rightProcessor.getVariables().forEach(constraint::addVariable);
 
         // The constant term gets the correct sign based on its position (left or right)
-        constraint.setConstTerm(-leftProcessor.getConstant() + rightProcessor.getConstant());
+        constraint.setConstTerm((leftProcessor.getConstant().negate()).add(rightProcessor.getConstant()));
 
         constraints.add(constraint);
         return null;

@@ -1,20 +1,29 @@
 package Parser.Visitor;
 
 import Parser.Generated.*;
+import org.apache.commons.numbers.fraction.BigFraction;
+
 import java.util.HashMap;
 import java.util.Map;
 
 
 public class ExpressionProcessor extends ConstraintsGrammarBaseVisitor<Void> {
-    private final double sideMultiplier;
-    private final Map<String, Double> variables = new HashMap<>();
-    private double constant = 0.0;
-    private double currentSign = 1.0;
+    private final BigFraction sideMultiplier;
+    private final Map<String, BigFraction> variables = new HashMap<>();
+    private BigFraction constant = BigFraction.ZERO;
+    private BigFraction currentSign = BigFraction.ONE;
 
-    public ExpressionProcessor(double sideMultiplier) { this.sideMultiplier = sideMultiplier; }
+    public ExpressionProcessor(BigFraction sideMultiplier) {
+        this.sideMultiplier = sideMultiplier;
+    }
 
-    public Map<String, Double> getVariables() { return variables; }
-    public double              getConstant() { return constant; }
+    public Map<String, BigFraction> getVariables() {
+        return variables;
+    }
+
+    public BigFraction getConstant() {
+        return constant;
+    }
 
     public void process(ConstraintsGrammarParser.ExprContext ctx) {
         if (ctx == null)
@@ -25,7 +34,7 @@ public class ExpressionProcessor extends ConstraintsGrammarBaseVisitor<Void> {
         boolean startsWithMinus = ctx.SUB(0) != null && ctx.getChild(0).getText().equals("-");
 
         // Set the initial sign multiplier based on the presence of the leading minus
-        currentSign = startsWithMinus ? -1.0 : 1.0;
+        currentSign = startsWithMinus ? BigFraction.ONE.negate() : BigFraction.ONE;
 
         // Process the mandatory first term of the expression
         if (!ctx.term().isEmpty())
@@ -40,7 +49,7 @@ public class ExpressionProcessor extends ConstraintsGrammarBaseVisitor<Void> {
             // If the calculated operator index is valid, extract its text to update the contextual sign
             if (operatorChildIndex < ctx.getChildCount()) {
                 String op = ctx.getChild(operatorChildIndex).getText();
-                currentSign = op.equals("-") ? -1.0 : 1.0;
+                currentSign = op.equals("-") ? BigFraction.ONE.negate() : BigFraction.ONE;
             }
 
             // Visit the current term, which will inherit the updated 'currentSign' context
@@ -48,42 +57,47 @@ public class ExpressionProcessor extends ConstraintsGrammarBaseVisitor<Void> {
         }
     }
 
-    private double parseNumber(String numStr) {
+    private BigFraction parseNumber(String numStr) {
         if (numStr.contains("/")) {
             String[] parts = numStr.split("/");
-            return Double.parseDouble(parts[0]) / Double.parseDouble(parts[1]);
+            long numerator = Long.parseLong(parts[0]);
+            long denominator = Long.parseLong(parts[1]);
+            return BigFraction.of(numerator, denominator);
         }
 
-        return Double.parseDouble(numStr);
+        long value = Long.parseLong(numStr);
+        return BigFraction.of(value);
     }
 
     @Override
     public Void visitCoeffVar(ConstraintsGrammarParser.CoeffVarContext ctx) {
-        double coefficient = currentSign * sideMultiplier * parseNumber(ctx.NUMBER().getText());
+        BigFraction coefficient = currentSign.multiply(sideMultiplier).multiply(parseNumber(ctx.NUMBER().getText()));
         String varName = ctx.VARIABLE().getText();
-        variables.put(varName, variables.getOrDefault(varName, 0.0) + coefficient);
+
+        variables.put(varName, variables.getOrDefault(varName, BigFraction.ZERO).add(coefficient));
         return null;
     }
 
     @Override
     public Void visitVar(ConstraintsGrammarParser.VarContext ctx) {
-        double coefficient = currentSign * sideMultiplier * 1.0;
+        BigFraction coefficient = currentSign.multiply(sideMultiplier).multiply(BigFraction.ONE);
         String varName = ctx.VARIABLE().getText();
-        variables.put(varName, variables.getOrDefault(varName, 0.0) + coefficient);
+
+        variables.put(varName, variables.getOrDefault(varName, BigFraction.ZERO).add(coefficient));
         return null;
     }
 
     @Override
     public Void visitNumber(ConstraintsGrammarParser.NumberContext ctx) {
-        double val = currentSign * parseNumber(ctx.NUMBER().getText());
-        constant += val;
+        BigFraction val = currentSign.multiply(parseNumber(ctx.NUMBER().getText()));
+        constant = constant.add(val);
         return null;
     }
 
     @Override
     public Void visitNegTerm(ConstraintsGrammarParser.NegTermContext ctx) {
-        double backupSign = currentSign;
-        currentSign = currentSign * -1.0;
+        BigFraction backupSign = currentSign;
+        currentSign = currentSign.negate();
         this.visit(ctx.term());
         currentSign = backupSign;
         return null;
@@ -91,11 +105,13 @@ public class ExpressionProcessor extends ConstraintsGrammarBaseVisitor<Void> {
 
     @Override
     public Void visitParens(ConstraintsGrammarParser.ParensContext ctx) {
-        ExpressionProcessor subProcessor = new ExpressionProcessor(this.sideMultiplier * currentSign);
+        ExpressionProcessor subProcessor = new ExpressionProcessor(this.sideMultiplier.multiply(currentSign));
         subProcessor.process(ctx.expr());
 
-        subProcessor.getVariables().forEach((k, v) -> variables.put(k, variables.getOrDefault(k, 0.0) + v));
-        this.constant += subProcessor.getConstant();
+        subProcessor.getVariables().forEach((k, v) ->
+                variables.put(k, variables.getOrDefault(k, BigFraction.ZERO).add(v))
+        );
+        this.constant = this.constant.add(subProcessor.getConstant());
 
         return null;
     }

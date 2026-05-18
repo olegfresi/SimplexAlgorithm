@@ -1,27 +1,28 @@
 package Model;
 
+import org.apache.commons.numbers.fraction.BigFraction;
 import java.util.HashMap;
 import java.util.Map;
 
 public class LinearConstraint {
-    private final Map<String, Double> vars = new HashMap<>();
+    private final Map<String, BigFraction> vars = new HashMap<>();
     private String relOp;
-    private Double constTerm;
+    private BigFraction constTerm;
 
     public LinearConstraint() {
         this.relOp = "";
-        this.constTerm = 0.0;
+        this.constTerm = BigFraction.ZERO;
     }
 
-    public void addVariable(String name, double value) {
-        vars.put(name, vars.getOrDefault(name, 0.0) + value);
+    public void addVariable(String name, BigFraction value) {
+        vars.put(name, vars.getOrDefault(name, BigFraction.ZERO).add(value));
     }
     public void setRelOp(String relOp) { this.relOp = relOp; }
-    public void setConstTerm(Double constTerm) { this.constTerm = constTerm; }
+    public void setConstTerm(BigFraction constTerm) { this.constTerm = constTerm; }
 
-    public Map<String, Double> getVars() { return vars; }
-    public String              getRelOp() { return relOp; }
-    public Double              getConstTerm() { return constTerm; }
+    public Map<String, BigFraction> getVars() { return vars; }
+    public String                   getRelOp() { return relOp; }
+    public BigFraction              getConstTerm() { return constTerm; }
 
     @Override
     public String toString() {
