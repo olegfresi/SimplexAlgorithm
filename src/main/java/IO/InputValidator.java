@@ -4,6 +4,7 @@ import java.io.File;
 
 public class InputValidator {
 
+    InputValidator() {}
 
     public static void validate(File file) throws InputException {
 

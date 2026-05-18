@@ -26,18 +26,18 @@ public class ConstraintLoaderVisitor extends ConstraintsGrammarBaseVisitor<Void>
         constraint.setRelOp(ctx.relop().getText());
 
         // Process lhs without changing signs
-        main.java.Parser.Visitor.ExpressionProcessor leftProcessor = new main.java.Parser.Visitor.ExpressionProcessor(1.0);
+        ExpressionProcessor leftProcessor = new ExpressionProcessor(1.0);
         leftProcessor.process(ctx.expr(0));
 
         // Process rhs with a negative multiplier to move all terms to the left-hand side
-        main.java.Parser.Visitor.ExpressionProcessor rightProcessor = new main.java.Parser.Visitor.ExpressionProcessor(-1.0);
+        ExpressionProcessor rightProcessor = new ExpressionProcessor(-1.0);
         rightProcessor.process(ctx.expr(1));
 
         leftProcessor.getVariables().forEach(constraint::addVariable);
         rightProcessor.getVariables().forEach(constraint::addVariable);
 
         // The constant term gets the correct sign based on its position (left or right)
-        constraint.setConstTerm(leftProcessor.getConstant() - rightProcessor.getConstant());
+        constraint.setConstTerm(-leftProcessor.getConstant() + rightProcessor.getConstant());
 
         constraints.add(constraint);
         return null;

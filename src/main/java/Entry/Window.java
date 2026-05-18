@@ -7,6 +7,8 @@ import IO.*;
 import Parser.Visitor.*;
 import Parser.Generated.*;
 import Model.*;
+import Solver.SimplexResult;
+import Solver.SimplexSolver;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 import java.io.IOException;
@@ -26,7 +28,7 @@ public class Window extends javax.swing.JFrame {
 
     private void initComponents() {
 
-        loadButton = new JButton("Load TXT");
+        loadButton = new JButton("Load File");
         solveButton = new JButton("Solve");
         fileLabel = new JLabel("No file selected");
 
@@ -49,13 +51,13 @@ public class Window extends javax.swing.JFrame {
                 JOptionPane.showMessageDialog(this,
                         "Please load a TXT file first.",
                         "Error",
-                        JOptionPane.ERROR_MESSAGE);
+                        JOptionPane.ERROR_MESSAGE,
+                        null);
 
                 return;
             }
 
             try {
-
                 CharStream input = CharStreams.fromPath(selectedFile.toPath());
 
                 ConstraintsGrammarLexer lexer = new ConstraintsGrammarLexer(input);
@@ -73,14 +75,15 @@ public class Window extends javax.swing.JFrame {
                 ConstraintLoaderVisitor loader = new ConstraintLoaderVisitor();
                 loader.visit(tree);
 
-                List<LinearConstraint> constraintList = loader.getConstraints();
+                String message = getString(loader);
 
-                for (LinearConstraint c : constraintList) {
-                    System.out.println(c);
-                }
-
-                JOptionPane.showMessageDialog(this, "Constraints loaded successfully!");
-
+                JOptionPane.showMessageDialog(
+                        this,
+                        message,
+                        "Simplex Solver Results",
+                        JOptionPane.INFORMATION_MESSAGE,
+                        null
+                );
             }
             catch (RuntimeException ex) {
                 if (ex.getCause() instanceof ParseException) {
@@ -113,8 +116,24 @@ public class Window extends javax.swing.JFrame {
         add(panel);
     }
 
-    private void openFileDialog() {
+    private static String getString(ConstraintLoaderVisitor loader) {
+        List<LinearConstraint> constraintList = loader.getConstraints();
 
+        SimplexSolver solver = new SimplexSolver(constraintList, OrderingStrategy.STANDARD);
+        SimplexResult result = solver.solve();
+
+        String status = result.isSatisfiable()
+                ? "SATISFIABLE (SAT) -> A valid solution exists."
+                : "UNSATISFIABLE (UNSAT) -> Constraints are contradictory.";
+
+        return "================ SIMPLEX SOLVER RESULTS ================\n\n" +
+                        "Result: " + status + "\n\n" +
+                        "Total Pivot Operations Performed: " + result.getPivotCount() + "\n\n" +
+                        "Initial Variable Ordering: " + result.getUsedOrdering() + "\n\n" +
+                        "========================================================";
+    }
+
+    private void openFileDialog() {
         JFileChooser fileChooser = new JFileChooser();
         int result = fileChooser.showOpenDialog(this);
 
@@ -123,17 +142,14 @@ public class Window extends javax.swing.JFrame {
             File file = fileChooser.getSelectedFile();
 
             try {
-
                 InputValidator.validate(file);
-
                 selectedFile = file;
-
                 fileLabel.setText("Selected: " + file.getName());
 
                 JOptionPane.showMessageDialog(this, "File loaded correctly!");
 
             } catch (InputException ex) {
-                JOptionPane.showMessageDialog(this, ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Input Error", JOptionPane.ERROR_MESSAGE, null);
             }
         }
     }

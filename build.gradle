@@ -1,6 +1,8 @@
 plugins {
     id 'java'
     id 'antlr'
+    id 'idea'
+    id 'application'
 }
 
 repositories {
@@ -23,7 +25,12 @@ sourceSets {
     }
 }
 
+application {
+    mainClass.set('Entry.Main')
+}
+
 generateGrammarSource {
+    maxHeapSize = "128m"
     outputDirectory = file("src/main/java/Parser/Generated")
     arguments += ["-visitor"]
 }

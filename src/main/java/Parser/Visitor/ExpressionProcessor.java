@@ -1,4 +1,4 @@
-package main.java.Parser.Visitor;
+package Parser.Visitor;
 
 import Parser.Generated.*;
 import java.util.HashMap;
@@ -17,7 +17,8 @@ public class ExpressionProcessor extends ConstraintsGrammarBaseVisitor<Void> {
     public double              getConstant() { return constant; }
 
     public void process(ConstraintsGrammarParser.ExprContext ctx) {
-        if (ctx == null) return;
+        if (ctx == null)
+            return;
 
         // Check if the expression begins with a unary minus (e.g., -x1 + x2)
         // It verifies if a SUB token exists and if it occupies the very first position among children
@@ -58,17 +59,17 @@ public class ExpressionProcessor extends ConstraintsGrammarBaseVisitor<Void> {
 
     @Override
     public Void visitCoeffVar(ConstraintsGrammarParser.CoeffVarContext ctx) {
-        double coef = currentSign * sideMultiplier * parseNumber(ctx.NUMBER().getText());
+        double coefficient = currentSign * sideMultiplier * parseNumber(ctx.NUMBER().getText());
         String varName = ctx.VARIABLE().getText();
-        variables.put(varName, variables.getOrDefault(varName, 0.0) + coef);
+        variables.put(varName, variables.getOrDefault(varName, 0.0) + coefficient);
         return null;
     }
 
     @Override
     public Void visitVar(ConstraintsGrammarParser.VarContext ctx) {
-        double coef = currentSign * sideMultiplier * 1.0;
+        double coefficient = currentSign * sideMultiplier * 1.0;
         String varName = ctx.VARIABLE().getText();
-        variables.put(varName, variables.getOrDefault(varName, 0.0) + coef);
+        variables.put(varName, variables.getOrDefault(varName, 0.0) + coefficient);
         return null;
     }
 
@@ -90,14 +91,12 @@ public class ExpressionProcessor extends ConstraintsGrammarBaseVisitor<Void> {
 
     @Override
     public Void visitParens(ConstraintsGrammarParser.ParensContext ctx) {
-        double backupSign = currentSign;
         ExpressionProcessor subProcessor = new ExpressionProcessor(this.sideMultiplier * currentSign);
         subProcessor.process(ctx.expr());
 
         subProcessor.getVariables().forEach((k, v) -> variables.put(k, variables.getOrDefault(k, 0.0) + v));
         this.constant += subProcessor.getConstant();
 
-        currentSign = backupSign;
         return null;
     }
 }

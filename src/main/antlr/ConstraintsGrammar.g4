@@ -4,6 +4,8 @@ grammar ConstraintsGrammar;
 package Parser.Generated;
 }
 
+// PARSER RULES
+
 file
     : NL* (formula (NL+ formula)*)? NL* EOF
     ;
@@ -28,6 +30,8 @@ term
 relop
     : LE | GE | EQ | LT | GT
     ;
+
+// LEXER RULES
 
 ADD : '+';
 SUB : '-';
