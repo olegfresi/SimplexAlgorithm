@@ -1,6 +1,7 @@
-package Model;
+package Solver;
 
 import java.util.*;
+
 
 public class VariableOrderer {
 

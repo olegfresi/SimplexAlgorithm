@@ -14,8 +14,6 @@ public class StandardizedConstraint {
     public void setConstTerm(BigFraction constTerm) { this.constTerm = constTerm; }
 
     public Map<String, BigFraction> getVars() { return vars; }
-    public String                   getRelOp() { return relOp; }
-    public BigFraction              getConstTerm() { return constTerm; }
 
     @Override
     public String toString() { return vars + " " + relOp + " " + constTerm; }

@@ -7,7 +7,7 @@ import IO.*;
 import Parser.Visitor.*;
 import Parser.Generated.*;
 import Model.*;
-import Solver.SimplexResult;
+import Model.SimplexResult;
 import Solver.SimplexSolver;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
@@ -127,11 +127,21 @@ public class Window extends javax.swing.JFrame {
                 ? "SATISFIABLE (SAT) -> A valid solution exists."
                 : "UNSATISFIABLE (UNSAT) -> Constraints are contradictory.";
 
-        return "================ SIMPLEX SOLVER RESULTS ================\n\n" +
-                        "Result: " + status + "\n\n" +
-                        "Total Pivot Operations Performed: " + result.getPivotCount() + "\n\n" +
-                        "Initial Variable Ordering: " + result.getUsedOrdering() + "\n\n" +
-                        "========================================================";
+        StringBuilder sb = new StringBuilder();
+        sb.append("================ SIMPLEX SOLVER RESULTS ================\n\n");
+        sb.append("Result: ").append(status).append("\n\n");
+        sb.append("Total Pivot Operations Performed: ").append(result.getPivotCount()).append("\n\n");
+        sb.append("Initial Variable Ordering: ").append(result.getUsedOrdering()).append("\n\n");
+
+        sb.append("Variable Assignments:\n");
+        if (result.isSatisfiable() && result.getModel() != null)
+            sb.append(result.modelToString());
+        else
+            sb.append("  No variable assignments available (Problem Unsatisfiable).\n");
+
+        sb.append("\n========================================================");
+
+        return sb.toString();
     }
 
     private void openFileDialog() {
